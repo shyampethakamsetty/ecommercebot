@@ -39,8 +39,51 @@ export default function Chat() {
           try {
             let parsed = res
             if (typeof parsed === 'string') parsed = JSON.parse(parsed)
-            const artifacts = parsed.artifacts || parsed.artifacts || parsed.artifacts
-            if (artifacts && artifacts.screenshot) {
+            
+            // Handle multiple screenshots from enhanced workflow
+            const artifacts = parsed.artifacts
+            if (artifacts && Array.isArray(artifacts)) {
+              // Multiple screenshots - display each with context
+              artifacts.forEach((artifact, index) => {
+                if (artifact && artifact.screenshot) {
+                  const filename = artifact.screenshot.split('/').pop()
+                  const url = '/api/artifacts/' + filename
+                  
+                  // Determine screenshot context from filename
+                  let context = 'Screenshot'
+                  if (filename.includes('login-page-loaded')) {
+                    context = 'Login Page Loaded'
+                  } else if (filename.includes('login-credentials-filled')) {
+                    context = 'Credentials Entered'
+                  } else if (filename.includes('login-landing-page')) {
+                    context = 'Successfully Logged In'
+                  } else if (filename.includes('search-results-page')) {
+                    context = 'Search Results'
+                  } else if (filename.includes('search-filter-applied')) {
+                    context = 'Filter Applied'
+                  } else if (filename.includes('addtocart')) {
+                    context = 'Added to Cart'
+                  } else if (filename.includes('checkout')) {
+                    context = 'Checkout Process'
+                  }
+                  
+                  setMessages(prev => [...prev, { 
+                    role:'assistant', 
+                    text: `${context} (${index + 1}/${artifacts.length}):`, 
+                    img: url 
+                  }])
+                }
+              })
+              
+              // Add summary message
+              const totalScreenshots = parsed.total_screenshots || artifacts.length
+              setMessages(prev => [...prev, { 
+                role:'assistant', 
+                text: `Workflow completed with ${totalScreenshots} screenshots captured.`
+              }])
+              
+            } else if (artifacts && artifacts.screenshot) {
+              // Legacy single screenshot handling
               const url = '/api/artifacts/' + artifacts.screenshot.split('/').pop()
               setMessages(prev => [...prev, { role:'assistant', text: 'Screenshot:', img: url }])
             }

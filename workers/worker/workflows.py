@@ -60,14 +60,5 @@ class WorkflowManager:
         return self.checkout_bot.checkout(payment_method=payment_method)
 
     def run_composite(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        # dispatch composite actions
-        if action == 'login':
-            return self.run_login(params.get('email','test@example.com'), params.get('password','Password1'))
-        if action == 'search':
-            return self.run_search(params.get('query',''))
-        if action == 'add_to_cart':
-            return self.run_add_to_cart(params.get('query'), params.get('product_index', 0))
-        if action == 'checkout':
-            return self.run_checkout(params.get('query'), params.get('product_index', 0), params.get('payment_method', 'COD'))
-        # default to search
-        return self.run_search(params.get('query',''))
+        # Use the enhanced PlaywrightRunner unified workflow method with session continuity
+        return self.runner.run_unified_workflow(workflow_id=1, user_id=params.get('user_id', 1), params=params)
