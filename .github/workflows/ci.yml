@@ -1,0 +1,43 @@
+
+name: CI Build & Smoke Tests
+
+on: [push, pull_request]
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build backend image
+        run: |
+          docker build -t ecomm-backend ./backend
+      - name: Build worker image
+        run: |
+          docker build -t ecomm-worker ./workers
+      - name: Run backend container
+        run: |
+          docker run -d --name ecomm-backend -p 8001:8000 --env POSTGRES_USER=postgres --env POSTGRES_PASSWORD=postgres ecomm-backend
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do curl -s http://localhost:8001/health && break || sleep 1; done
+      - name: Smoke test health
+        run: |
+          curl -s http://localhost:8001/health

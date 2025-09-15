@@ -1,0 +1,93 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ecommdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    # internal only by default - do not expose host port to avoid collisions
+    expose:
+      - '6379'
+
+  db-init:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+    command: ["python", "scripts/create_tables.py"]
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      db-init:
+        condition: service_completed_successfully
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./worker-data:/tmp/worker-data
+
+  worker:
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - BACKEND_HOST=http://backend:8000
+    depends_on:
+      - redis
+      - postgres
+      - backend
+    volumes:
+      - ./workers:/app/workers
+      - ./worker-data:/tmp/worker-data
+
+  flower:
+    image: mher/flower
+    environment:
+      - CELERY_BROKER_URL=${REDIS_URL}
+    ports:
+      - "5555:5555"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app/frontend
+
+volumes:
+  pgdata:
