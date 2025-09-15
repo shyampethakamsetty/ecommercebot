@@ -302,8 +302,8 @@ class PlaywrightRunner:
                 try:
                     if BOTASAURUS_AVAILABLE:
                         apply_botasaurus(page)
-                except Exception:
-                    pass
+            except Exception:
+                pass
                 page.goto('https://demo.nopcommerce.com/login', timeout=60000)
                 page.wait_for_selector(wait_for_selector, timeout=30000)
                 self._human_delay()
