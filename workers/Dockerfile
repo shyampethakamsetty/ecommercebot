@@ -16,7 +16,7 @@ ENV PYTHONPATH=/app/workers:/app
 WORKDIR /app/workers
 
 # create worker-data directory for artifacts
-RUN mkdir -p /tmp/worker-data && chmod 0777 /tmp/worker-data
+RUN mkdir -p /tmp/worker-data && chmod 0777 /tmp/worker-data && chown -R $APP_USER:$APP_USER /tmp/worker-data
 ENV PROXY_LIST=
 ENV PROXY_FILE=/app/proxies.txt
 
