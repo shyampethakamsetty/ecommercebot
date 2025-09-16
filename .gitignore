@@ -2,4 +2,3 @@ __pycache__/
 worker-data/
 node_modules/
 .env
-DOM

@@ -21,7 +21,7 @@ def create_tables_and_seed_data():
         if not default_user:
             default_user = User(
                 id=1,
-                email="default@botmart.com",
+                email="demo@nopcommerce.com",
                 hashed_password="dummy_hash",
                 created_at=datetime.utcnow()
             )

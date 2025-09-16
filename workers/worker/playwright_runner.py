@@ -299,9 +299,8 @@ class PlaywrightRunner:
             page = context.new_page()
             try:
                 apply_stealth(page)
-                try:
-                    if BOTASAURUS_AVAILABLE:
-                        apply_botasaurus(page)
+                if BOTASAURUS_AVAILABLE:
+                    apply_botasaurus(page)
             except Exception:
                 pass
                 page.goto('https://demo.nopcommerce.com/login', timeout=60000)
@@ -539,11 +538,15 @@ class PlaywrightRunner:
         params = params or {}
         action = params.get('action', 'search')
         
+        # Extract credentials from params
+        credentials = params.get('credentials', {})
+        email = credentials.get('email', 'test@example.com')
+        password = credentials.get('password', 'password1')
+        
+        print(f"🔐 Using login credentials: {email}")
+        
         # Always start with detailed login (3 screenshots)
-        login_result = self.login_with_detailed_screenshots(
-            params.get('email', 'test@example.com'), 
-            params.get('password', 'password1')
-        )
+        login_result = self.login_with_detailed_screenshots(email, password)
         
         # If login failed, return login result
         if login_result.get('status') != 'ok':
@@ -691,12 +694,16 @@ class PlaywrightRunner:
             try:
                 page = context.new_page()
                 
+                # Extract credentials
+                credentials = params.get('credentials', {})
+                email = credentials.get('email', 'test@example.com')
+                password = credentials.get('password', 'password1')
+                
+                print(f"🔐 Using login credentials: {email}")
+                
                 # STEP 1: Login (3 screenshots) - Always first
                 print("=== Starting Login Phase ===")
-                login_artifacts = self._perform_login_in_session(page, 
-                    params.get('email', 'test@example.com'),
-                    params.get('password', 'password1')
-                )
+                login_artifacts = self._perform_login_in_session(page, email, password)
                 all_artifacts.extend(login_artifacts)
                 
                 # Check if login was successful by looking for logout link
@@ -910,8 +917,10 @@ class PlaywrightRunner:
                                 $('.selected-price-range .from').text('{from_val}');
                                 $('.selected-price-range .to').text('{to_val}');
                                 
-                                // Trigger the change event to update products
-                                slider.trigger('slidestop');
+                                // Trigger the actual filtering by calling CatalogProducts.getProducts()
+                                if (typeof CatalogProducts !== 'undefined' && CatalogProducts.getProducts) {{
+                                    CatalogProducts.getProducts();
+                                }}
                                 
                                 console.log('Price filter applied: {filter_type} ${from_val}-${to_val}');
                             }}
@@ -919,8 +928,8 @@ class PlaywrightRunner:
                         
                         # Wait for the filter to be applied and page to reload
                         print("Waiting for filtered results to load...")
-                        page.wait_for_timeout(3000)  # 3 second delay as requested
-                        page.wait_for_load_state('networkidle', timeout=10000)
+                        page.wait_for_timeout(5000)  # 5 second delay to allow AJAX to complete
+                        page.wait_for_load_state('networkidle', timeout=15000)
                         
                         print(f"Price filter applied successfully: {filter_type} ${from_val}-${to_val}")
                     else:
@@ -1050,6 +1059,175 @@ class PlaywrightRunner:
             
         return artifacts_list
 
+    def _fill_billing_address(self, page, artifacts_list):
+        """Handle billing address step - use existing address if available"""
+        try:
+            print("📝 Step 1: Checking billing address...")
+            
+            # Check if billing form is visible
+            billing_form = page.locator('#co-billing-form')
+            if not billing_form.is_visible():
+                print("⚠️ Billing form not visible, skipping...")
+                return
+            
+            # Check if there's an existing address selected (dropdown with saved address)
+            address_select = page.locator('#billing-address-select')
+            if address_select.is_visible():
+                selected_value = address_select.input_value()
+                if selected_value and selected_value != "":
+                    print(f"✅ Using existing billing address (ID: {selected_value})")
+                else:
+                    print("📝 No existing address, will use new address form...")
+                    # If needed, could add form filling logic here, but usually not required
+            
+            # Take screenshot of billing address step
+            artifact = self._save_multiple_artifacts('checkout', page=page, step_name='billing-address')
+            artifacts_list.append(artifact)
+            
+            # Click continue button for billing (be specific to billing section)
+            billing_continue_btn = page.locator('#billing-buttons-container button.new-address-next-step-button')
+            if billing_continue_btn.is_visible():
+                print("✅ Proceeding with billing address...")
+                billing_continue_btn.click()
+                page.wait_for_load_state('networkidle', timeout=10000)
+                
+                print("🔄 Starting subsequent checkout steps...")
+                # Handle subsequent checkout steps automatically
+                self._complete_checkout_steps(page, artifacts_list)
+                print("✅ All checkout steps completed!")
+            else:
+                print("❌ Billing continue button not found!")
+            
+        except Exception as e:
+            print(f"⚠️ Error handling billing address: {e}")
+    
+    def _complete_checkout_steps(self, page, artifacts_list):
+        """Complete remaining checkout steps automatically with screenshots"""
+        try:
+            print("🚀 Entering _complete_checkout_steps method...")
+            
+            # Step 2: Shipping Address (usually skipped if same as billing)
+            print("🔍 Waiting for shipping step to become visible...")
+            try:
+                shipping_btn = page.locator('#shipping-buttons-container button.new-address-next-step-button')
+                shipping_btn.wait_for(state='visible', timeout=15000)
+                print("📦 Step 2: Shipping address (same as billing)...")
+                shipping_btn.click()
+                page.wait_for_load_state('networkidle', timeout=10000)
+                artifact = self._save_multiple_artifacts('checkout', page=page, step_name='shipping-address')
+                artifacts_list.append(artifact)
+                self._human_delay(1)
+            except Exception as e:
+                print(f"⚠️ Shipping step skipped or not visible: {e}")
+            
+            # Step 3: Shipping Method - Choose Ground ($0.00)
+            print("🔍 Waiting for shipping method step to become visible...")
+            try:
+                shipping_method_btn = page.locator('button.shipping-method-next-step-button')
+                shipping_method_btn.wait_for(state='visible', timeout=15000)
+                print("🚚 Step 3: Selecting Ground shipping method...")
+                # Select first shipping option (Ground)
+                ground_option = page.locator('#shippingoption_0')
+                if ground_option.is_visible():
+                    ground_option.check()
+                    self._human_delay(0.5)
+                
+                artifact = self._save_multiple_artifacts('checkout', page=page, step_name='shipping-method')
+                artifacts_list.append(artifact)
+                
+                shipping_method_btn.click()
+                page.wait_for_load_state('networkidle', timeout=10000)
+                self._human_delay(1)
+            except Exception as e:
+                print(f"⚠️ Shipping method step failed: {e}")
+            
+            # Step 4: Payment Method - Choose Check / Money Order
+            print("🔍 Waiting for payment method step to become visible...")
+            try:
+                payment_method_btn = page.locator('button.payment-method-next-step-button')
+                payment_method_btn.wait_for(state='visible', timeout=15000)
+                print("💳 Step 4: Selecting Check / Money Order payment...")
+                # Select first payment option (Check / Money Order)
+                check_option = page.locator('#paymentmethod_0')
+                if check_option.is_visible():
+                    check_option.check()
+                    self._human_delay(0.5)
+                
+                artifact = self._save_multiple_artifacts('checkout', page=page, step_name='payment-method')
+                artifacts_list.append(artifact)
+                
+                payment_method_btn.click()
+                page.wait_for_load_state('networkidle', timeout=10000)
+                self._human_delay(1)
+            except Exception as e:
+                print(f"⚠️ Payment method step failed: {e}")
+            
+            # Step 5: Payment Information - Continue
+            print("🔍 Waiting for payment info step to become visible...")
+            try:
+                payment_info_btn = page.locator('button.payment-info-next-step-button')
+                payment_info_btn.wait_for(state='visible', timeout=15000)
+                print("ℹ️ Step 5: Payment information...")
+                artifact = self._save_multiple_artifacts('checkout', page=page, step_name='payment-info')
+                artifacts_list.append(artifact)
+                
+                payment_info_btn.click()
+                page.wait_for_load_state('networkidle', timeout=10000)
+                self._human_delay(1)
+            except Exception as e:
+                print(f"⚠️ Payment info step failed: {e}")
+            
+            # Step 6: Confirm Order - Final step
+            print("🔍 Waiting for confirm order step to become visible...")
+            try:
+                confirm_btn = page.locator('button.confirm-order-next-step-button')
+                confirm_btn.wait_for(state='visible', timeout=15000)
+                print("✅ Step 6: Confirming order...")
+                artifact = self._save_multiple_artifacts('checkout', page=page, step_name='confirm-order')
+                artifacts_list.append(artifact)
+                
+                confirm_btn.click()
+                print("⏳ Waiting for order processing and redirect to thank you page...")
+                
+                # Wait for URL to change to the order completed page
+                try:
+                    print("🔄 Waiting for redirect to /checkout/completed...")
+                    page.wait_for_url('**/checkout/completed*', timeout=30000)  # Wait up to 30 seconds for redirect
+                    print("✅ Successfully redirected to order completion page!")
+                    
+                    # Wait for the page to fully load after redirect
+                    page.wait_for_load_state('networkidle', timeout=10000)
+                    
+                    # Additional delay to ensure all elements are rendered
+                    self._human_delay(2)
+                    
+                    # Verify we're on the correct page
+                    current_url = page.url
+                    print(f"📍 Final page URL: {current_url}")
+                    
+                    # Final screenshot of thank you page
+                    final_artifact = self._save_multiple_artifacts('checkout', page=page, step_name='thank-you-page')
+                    artifacts_list.append(final_artifact)
+                    print("🎉 Order completed successfully! Thank you page captured!")
+                    
+                except Exception as redirect_error:
+                    print(f"⚠️ URL redirect timeout or failed: {redirect_error}")
+                    print(f"📍 Current URL: {page.url}")
+                    
+                    # Still take a screenshot of whatever page we're on for debugging
+                    fallback_artifact = self._save_multiple_artifacts('checkout', page=page, step_name='order-processing-fallback')
+                    artifacts_list.append(fallback_artifact)
+                    print("📸 Fallback screenshot taken")
+            except Exception as e:
+                print(f"⚠️ Confirm order step failed: {e}")
+                
+            print("✅ _complete_checkout_steps method finished successfully!")
+                
+        except Exception as e:
+            print(f"⚠️ Error completing checkout steps: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _perform_checkout_in_session(self, page):
         """Perform checkout in existing session/page - returns list of artifacts"""
         artifacts_list = []
@@ -1058,16 +1236,34 @@ class PlaywrightRunner:
             # Go to cart
             page.goto('https://demo.nopcommerce.com/cart')
             page.wait_for_load_state('networkidle', timeout=10000)
+            
+            # CRITICAL: Check the terms of service checkbox before checkout
+            terms_checkbox = page.locator('#termsofservice')
+            if terms_checkbox.is_visible():
+                if not terms_checkbox.is_checked():
+                    print("✅ Accepting terms of service...")
+                    terms_checkbox.check()
+                    self._human_delay()  # Small delay after checking
+                else:
+                    print("✅ Terms of service already accepted")
+            else:
+                print("⚠️ Terms of service checkbox not found")
+            
+            # Take screenshot AFTER accepting terms
             artifact1 = self._save_multiple_artifacts('checkout', page=page, step_name='cart-page')
             artifacts_list.append(artifact1)
             
             # Proceed to checkout
             checkout_btn = page.locator('button.checkout-button')
             if checkout_btn.is_visible():
+                print("🛒 Proceeding to checkout...")
                 checkout_btn.click()
                 page.wait_for_load_state('networkidle', timeout=10000)
-                artifact2 = self._save_multiple_artifacts('checkout', page=page, step_name='checkout-page')
-                artifacts_list.append(artifact2)
+                
+                # Fill billing address form if visible and complete checkout
+                self._fill_billing_address(page, artifacts_list)
+            else:
+                print("❌ Checkout button not found or not visible")
                 
         except Exception as e:
             print(f"Checkout error: {str(e)}")
