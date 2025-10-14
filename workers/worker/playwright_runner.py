@@ -4,6 +4,15 @@ from typing import Optional
 from .botasaurus_adapter import apply_stealth
 from .proxy_manager import ProxyManager
 
+# Check if botasaurus is available
+try:
+    from .botasaurus_integration import apply_botasaurus
+    BOTASAURUS_AVAILABLE = True
+except ImportError:
+    BOTASAURUS_AVAILABLE = False
+    def apply_botasaurus(page):
+        pass  # No-op function
+
 class PlaywrightRunner:
     def __init__(self, proxy: Optional[str] = None, headless: bool = True, storage_path=None, user_agent: Optional[str] = None):
         self.proxy = proxy
@@ -73,7 +82,12 @@ class PlaywrightRunner:
                 page.screenshot(path=fname, full_page=True)
                 with open(fhtml, 'w', encoding='utf-8') as fh:
                     fh.write(page.content())
-        except Exception:
+                print(f"✅ Screenshot saved: {fname}")
+            else:
+                print(f"⚠️ No page provided for screenshot: {fname}")
+                fname = None
+        except Exception as e:
+            print(f"❌ Screenshot failed: {fname} - Error: {str(e)}")
             try:
                 open(fhtml, 'w').close()
             except:
@@ -133,7 +147,7 @@ class PlaywrightRunner:
                     try:
                         # Check if we're on home page or any page other than login
                         current_url = page.url
-                        if '/login' not in current_url.lower():
+                        if current_url and '/login' not in current_url.lower():
                             # We've been redirected, wait a bit more for page to load
                             page.wait_for_load_state('networkidle', timeout=5000)
                         else:
@@ -751,10 +765,10 @@ class PlaywrightRunner:
                     'artifacts': all_artifacts,
                     'total_screenshots': len(all_artifacts),
                     'workflow_steps': {
-                        'login': len([a for a in all_artifacts if 'login' in a.get('screenshot', '')]),
-                        'search': len([a for a in all_artifacts if 'search' in a.get('screenshot', '')]),
-                        'cart': len([a for a in all_artifacts if 'cart' in a.get('screenshot', '')]),
-                        'checkout': len([a for a in all_artifacts if 'checkout' in a.get('screenshot', '')])
+                        'login': len([a for a in all_artifacts if a and 'login' in (a.get('screenshot') or '')]),
+                        'search': len([a for a in all_artifacts if a and 'search' in (a.get('screenshot') or '')]),
+                        'cart': len([a for a in all_artifacts if a and 'cart' in (a.get('screenshot') or '')]),
+                        'checkout': len([a for a in all_artifacts if a and 'checkout' in (a.get('screenshot') or '')])
                     }
                 }
                 

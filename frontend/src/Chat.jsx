@@ -198,14 +198,47 @@ export default function Chat() {
           {messages.length === 0 && (
             <div style={{
               textAlign: 'center',
-              color: '#888',
-              fontSize: '1.1rem',
-              marginTop: '100px'
+              color: '#555',
+              fontSize: '1rem',
+              marginTop: '40px',
+              padding: '20px',
+              background: 'linear-gradient(135deg, rgba(102,126,234,0.1) 0%, rgba(118,75,162,0.1) 100%)',
+              borderRadius: '15px',
+              border: '2px solid rgba(102,126,234,0.2)'
             }}>
-              <div style={{fontSize: '3rem', marginBottom: '20px'}}>💬</div>
-              <div>Start a conversation with your AI shopping assistant!</div>
-              <div style={{marginTop: '10px', fontSize: '0.9rem'}}>
-                Try: "buy me books under 50" or "search for laptops"
+              <div style={{fontSize: '3rem', marginBottom: '20px'}}>🛒</div>
+              <div style={{fontSize: '1.3rem', fontWeight: '600', marginBottom: '15px', color: '#333'}}>
+                Welcome to the AI Shopping Assistant!
+              </div>
+              
+              <div style={{textAlign: 'left', marginTop: '20px', lineHeight: '1.6'}}>
+                <div style={{marginBottom: '15px', padding: '10px', background: 'rgba(255,255,255,0.7)', borderRadius: '8px'}}>
+                  <strong>📝 Step 1: Register an Account</strong><br/>
+                  Go to <a href="https://demo.nopcommerce.com/register" target="_blank" style={{color: '#667eea', textDecoration: 'underline'}}>https://demo.nopcommerce.com/register</a> and create an account.
+                </div>
+                
+                <div style={{marginBottom: '15px', padding: '10px', background: 'rgba(255,255,255,0.7)', borderRadius: '8px'}}>
+                  <strong>📍 Step 2: Add a Saved Address</strong><br/>
+                  After registration, make sure to add a saved billing/shipping address in your account settings.
+                </div>
+                
+                <div style={{marginBottom: '15px', padding: '10px', background: 'rgba(255,255,255,0.7)', borderRadius: '8px'}}>
+                  <strong>💬 Step 3: Start Shopping!</strong><br/>
+                  Type your request in natural language with your credentials:
+                </div>
+                
+                <div style={{marginTop: '15px', fontSize: '0.9rem'}}>
+                  <div style={{fontWeight: '600', marginBottom: '8px'}}>Example Commands:</div>
+                  <div style={{fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '8px', borderRadius: '5px', marginBottom: '5px'}}>
+                    "buy me books under 50 bucks user: your@email.com pass: yourpassword"
+                  </div>
+                  <div style={{fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '8px', borderRadius: '5px', marginBottom: '5px'}}>
+                    "add to cart mobile above 500 dollars user: your@email.com pass: yourpassword"
+                  </div>
+                  <div style={{fontFamily: 'monospace', background: 'rgba(0,0,0,0.05)', padding: '8px', borderRadius: '5px'}}>
+                    "search for laptops and checkout user: your@email.com pass: yourpassword"
+                  </div>
+                </div>
               </div>
             </div>
           )}
