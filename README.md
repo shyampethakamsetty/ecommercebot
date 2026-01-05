@@ -4,7 +4,8 @@
 
 ![workflow](https://github.com/user-attachments/assets/dd6ea8a2-e2d6-4e6d-8697-cf896f42db7a)
 
-**📊 Interactive Architecture Diagram**: [View on Excalidraw](https://excalidraw.com/#json=SzqgID-IVMm00_4AyCUN4,ZJAsah-gSFLFTrcdRJRUXQ)
+**Architecture Diagram**: [<img width="16618" height="8663" alt="image" src="https://github.com/user-attachments/assets/fc8f8db9-8b43-4c47-9692-c704d58fbece" />
+](https://excalidraw.com/#json=SzqgID-IVMm00_4AyCUN4,ZJAsah-gSFLFTrcdRJRUXQ)
 
 ## 🚀 Features
 
